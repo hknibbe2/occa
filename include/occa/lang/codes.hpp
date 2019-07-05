@@ -14,7 +14,6 @@ namespace occa {
     class codeSource_t;
 
     typedef std::set<codeSource_t>           codeSourceSet;
-    typedef std::vector<codeSource_t>        codeSourceVector;
     typedef std::map<file_t*, codeSourceSet> fileCodeSourceMap;
 
     extern const int DEFAULT_MAX_ERRORS_DISPLAYED;
@@ -78,18 +77,17 @@ namespace occa {
       void addFileSection(std::stringstream &ss,
                           file_t *file,
                           codeSourceSet &fileSources,
-                          int sidebarWidth = -1);
+                          int sidebarWidth = -1,
+                          const bool addFilename = true);
 
       void addFileSection(strVector &sections,
                           file_t *file,
                           codeSourceSet &fileSources,
-                          int sidebarWidth = -1);
+                          int sidebarWidth = -1,
+                          const bool addFilename = true);
 
-      void printSourceLine(strVector &sections,
-                           file_t *file,
-                           filePosition &linePos,
-                           const int offset,
-                           const int sidebarWidth);
+      void addDisjointSourceLineMessages(std::stringstream &ss,
+                                         codeSourceSet &lineSources);
 
       std::string getSupressedMessage(const int supressedSources);
 
@@ -97,12 +95,12 @@ namespace occa {
 
       void addOriginStackSection(strVector &sections);
 
-      void printFilenameLine(std::stringstream &ss,
-                             file_t *file);
+      void addFilenameLine(std::stringstream &ss,
+                           file_t *file);
 
-      void printDivider(std::stringstream &ss,
-                        const std::string &divider,
-                        const int sidebarWidth);
+      void addDivider(std::stringstream &ss,
+                      const std::string &divider,
+                      const int sidebarWidth);
     };
 
     codePrinter_t errorCode(io::output &out,

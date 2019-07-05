@@ -33,6 +33,8 @@ namespace occa {
     }
 
     //---[ File Origin ]----------------
+    const filePosition filePosition::none;
+
     filePosition::filePosition() :
       line(1),
       lineStart(NULL),

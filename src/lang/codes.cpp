@@ -89,14 +89,14 @@ namespace occa {
     }
 
     codePrinter_t& codePrinter_t::withSource(const codeSource_t &source) {
+      // Store the index for tie-breakers if there are multiple errors
+      // on the same token
       if ((source.origin.file == origin.file) &&
           source.origin.onSameLine(origin)) {
-        // Sort by line offset
         originLineSources.insert(
-          source.withIndex(source.origin.position.lineOffset())
+          source.withIndex(sourceIndex++)
         );
       } else {
-        // Sort by insertion order
         sources[source.origin.file].insert(
           source.withIndex(sourceIndex++)
         );
@@ -157,9 +157,6 @@ namespace occa {
     }
 
     void codePrinter_t::addSourceSections(strVector &sections) {
-      if (!sources.size()) {
-        return;
-      }
       // Print issues from the original file first
       addOriginFileSection(sections);
 
@@ -205,11 +202,16 @@ namespace occa {
       const int sidebarWidth = getSidebarWidth(maxLine);
       const bool hasOriginSources = originLineSources.size();
       const bool hasFileSources = fileSources.size();
+      const bool needsDivider = (
+        !originIsFirstSource
+        && hasOriginSources
+        && hasFileSources
+      );
 
       // Add origin line sources first, followed by the rest of the origin file
       if (hasOriginSources) {
         ss << '\n';
-        addFileSection(sections,
+        addFileSection(ss,
                        origin.file,
                        originLineSources,
                        sidebarWidth);
@@ -217,19 +219,20 @@ namespace occa {
 
       // If the origin message is the first line, no need to add a divider
       // splitting the origin message with other messages in the same file
-      if (!originIsFirstSource
-          && hasOriginSources
-          && hasFileSources) {
+      if (needsDivider) {
         ss << '\n';
-        printDivider(ss, "^^^", sidebarWidth);
+        addDivider(ss, "^^^", sidebarWidth);
       }
 
       if (hasFileSources) {
-        ss << '\n';
-        addFileSection(sections,
+        if (needsDivider) {
+          ss << '\n';
+        }
+        addFileSection(ss,
                        origin.file,
                        fileSources,
-                       sidebarWidth);
+                       sidebarWidth,
+                       false);
       }
 
       // Push back stacktrace combined with file sections
@@ -239,12 +242,15 @@ namespace occa {
     void codePrinter_t::addFileSection(std::stringstream &ss,
                                        file_t *file,
                                        codeSourceSet &fileSources,
-                                       int sidebarWidth) {
+                                       int sidebarWidth,
+                                       const bool addFilename) {
       if (!fileSources.size()) {
         return;
       }
 
-      printFilenameLine(ss, file);
+      if (addFilename) {
+        addFilenameLine(ss, file);
+      }
 
       if (sidebarWidth < 0) {
         // fileSources is an already sorted set, use the last line
@@ -254,31 +260,110 @@ namespace occa {
         );
       }
 
+      fileOrigin currentOrigin = fileSources.begin()->origin;
+      currentOrigin.position.line = -1;
+
+      codeSourceSet::iterator lineStartIt = fileSources.begin();
+
       codeSourceSet::iterator it = fileSources.begin();
       while (it != fileSources.end()) {
-        const codeSource_t &source = *(it++);
+        const codeSource_t &source = *it;
+        if (!source.origin.onSameLine(currentOrigin)) {
+          currentOrigin = source.origin;
+          addSourceLineMessages(ss, lineStartIt, it);
+          lineStartIt = it;
+        }
+        ++it;
+      }
+
+      addSourceLineMessages(ss, lineStartIt, it);
+    }
+
+    void codePrinter_t::addFileSection(strVector &sections,
+                                       file_t *file,
+                                       codeSourceSet &fileSources,
+                                       int sidebarWidth,
+                                       const bool addFilename) {
+      std::stringstream ss;
+      addFileSection(ss, file, fileSources, sidebarWidth, addFilename);
+      sections.push_back(ss.str());
+    }
+
+    void codePrinter_t::addSourceLineMessages(std::stringstream &ss,
+                                              codeSourceSet &lineSources) {
+      // No sources or messages to add
+      if (lineSources.size() == 0) {
+        return;
+      }
+
+      // Create disjoint sets of sources and print them
+      std::vector<codeSourceSet> disjointSourceSets;
+
+      // Add first element
+      codeSourceSet::iterator it = lineSources.begin();
+      disjointSourceSets.push_back(codeSourceSet());
+      disjointSourceSets[0].push_back(*it);
+      +it;
+
+      while (it != lineSources.end()) {
+        const codeSource_t &source = *it;
         const filePosition &position = source.origin.position;
+
+        ++it;
+      }
+    }
+
+    void codePrinter_t::addDisjointSourceLineMessages(std::stringstream &ss,
+                                                      codeSourceSet &lineSources) {
+      // This method assumes the vector of sources have disjoint start and end positions
+
+      // Print out the source code line first
+      const codeSource_t &rootSource = lineSources[0];
+      const filePosition &rootPosition = rootSource.origin.position;
+
+      const char *lineStart = rootPosition.lineStart;
+      const char *lineEnd = lineStart;
+      lex::skipTo(lineEnd, '\n');
+
+      const std::string line(lineStart, lineEnd - lineStart - 1);
+      ss << line << '\n';
+
+      // Keep track of the message lines from down to up
+      strVector lines;
+      std::string underlineLine;
+      std::string prefix;
+
+      for (codeSourceSet::iterator it = startIt; it < endIt; ++it) {
+        const codeSource_t &source = *it;
+        const filePosition &position = source.origin.position;
+        const std::string space(position.start - position.lineStart, ' ');
+
+        std::string underline = green("^");
+
+        // Print out all of the underlined lines for each token
+        uderlineLine += space;
+        uderlineLine += underline;
 
         const char *lineEnd = position.lineStart;
         lex::skipTo(lineEnd, '\n');
 
         const std::string line(position.lineStart,
                                lineEnd - position.lineStart - 1);
-        const std::string space(position.start - position.lineStart, ' ');
 
         ss << line << '\n'
            << space << green("^") << '\n';
       }
+
+      // Add the underline newline
+      ss << underlineLine << '\n';
+
+      // Print out the message lines backwards
+      const int lineCount = (int) lines.size();
+      for (int i = (lineCount - 1); i >= 0; --i) {
+        ss << lines[i] << '\n';
+      }
     }
 
-    void codePrinter_t::addFileSection(strVector &sections,
-                                       file_t *file,
-                                       codeSourceSet &fileSources,
-                                       int sidebarWidth) {
-      std::stringstream ss;
-      addFileSection(ss, file, fileSources, sidebarWidth);
-      sections.push_back(ss.str());
-    }
 
     std::string codePrinter_t::getSupressedMessage(const int supressedCount) {
       if (supressedCount <= 0) {
@@ -315,14 +400,14 @@ namespace occa {
       }
     }
 
-    void codePrinter_t::printFilenameLine(std::stringstream &ss,
-                                          file_t *file) {
+    void codePrinter_t::addFilenameLine(std::stringstream &ss,
+                                        file_t *file) {
       ss << blue(file->filename) << '\n';
     }
 
-    void codePrinter_t::printDivider(std::stringstream &ss,
-                                     const std::string &divider,
-                                     const int sidebarWidth) {
+    void codePrinter_t::addDivider(std::stringstream &ss,
+                                   const std::string &divider,
+                                   const int sidebarWidth) {
       // Center divider along the sidebar border
       int padding = sidebarWidth - (int) (divider.size() / 2);
       ss << std::string(padding, ' ') << divider;

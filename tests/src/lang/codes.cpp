@@ -70,17 +70,20 @@ int main(const int argc, const char **argv) {
   codePrinter_t ec = getCodePrinter(true, "");
   for (int isError = 0; isError < 2; ++isError) {
     // No sources
+    std::cout << 1 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE)
         .print();
 
     // Source same as origin
+    std::cout << 2 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE)
         .withSource(intOrigin1, SOURCE1)
         .print();
 
     // Multiple messages for the same source
+    std::cout << 3 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE)
         .withSource(intOrigin1, SOURCE1)
@@ -88,6 +91,7 @@ int main(const int argc, const char **argv) {
         .print();
 
     // Multiple sources in the same line
+    std::cout << 4 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE)
         .withSource(intOrigin1, SOURCE1)
@@ -96,6 +100,7 @@ int main(const int argc, const char **argv) {
         .print();
 
     // Source above origin
+    std::cout << 5 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(blahOrigin1, MESSAGE)
         .withSource(blahOrigin1, SOURCE1)
@@ -103,6 +108,7 @@ int main(const int argc, const char **argv) {
         .print();
 
     // Source way below origin
+    std::cout << 6 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(blah2Origin1, MESSAGE)
         .withMessage(blah2Origin1, SOURCE1)
@@ -110,6 +116,7 @@ int main(const int argc, const char **argv) {
         .print();
 
     // Multiple files
+    std::cout << 7 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(blahOrigin1, MESSAGE)
         .withSource(blahOrigin1, SOURCE1)
@@ -117,6 +124,7 @@ int main(const int argc, const char **argv) {
         .print();
 
     // Supressed sources (1)
+    std::cout << 8 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE);
     for (int i = 0; i < (occa::lang::DEFAULT_MAX_ERRORS_DISPLAYED + 1); ++i) {
@@ -127,6 +135,7 @@ int main(const int argc, const char **argv) {
     ec.print();
 
     // Supressed sources (1+)
+    std::cout << 9 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(intOrigin1, MESSAGE);
     for (int i = 0; i < (occa::lang::DEFAULT_MAX_ERRORS_DISPLAYED + 100); ++i) {
@@ -137,6 +146,7 @@ int main(const int argc, const char **argv) {
     ec.print();
 
     // Multi-line message
+    std::cout << 10 << '\n';
     ec = getCodePrinter(isError, CODE);
     ec.withMessage(blockOrigin1, MESSAGE)
         .print();

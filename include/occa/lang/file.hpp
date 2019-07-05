@@ -32,6 +32,8 @@ namespace occa {
 
     class filePosition {
     public:
+      static const filePosition none;
+
       int line;
       const char *lineStart;
       const char *start, *end;
